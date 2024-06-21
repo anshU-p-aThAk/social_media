@@ -8,19 +8,22 @@ export const signup = async (req, res) => {
 
         const existingUser = await User.findOne({ username });
         if (existingUser) {
-            return res.status(400).json({ erro: "username already taken" });
+            // Return to stop further execution
+            return res.status(400).json({ error: "Username already taken" });
         }
 
         const existingEmail = await User.findOne({ email });
         if (existingEmail) {
-            return res.status(400).json({ erro: "email already taken" });
+            // Return to stop further execution
+            return res.status(400).json({ error: "Email already taken" });
         }
         
-        if(password.length < 6) {
-            return res.status(400).json({error: "Password must be at least 6 characters long"})
+        if (password.length < 6) {
+            // Return to stop further execution
+            return res.status(400).json({ error: "Password must be at least 6 characters long" });
         }
-        //hash password
 
+        // Hash password
         const salt = await bcrypt.genSalt(10);
         const hashPassword = await bcrypt.hash(password, salt);
 
@@ -29,53 +32,48 @@ export const signup = async (req, res) => {
             username,
             email,
             password: hashPassword
-        })
+        });
 
-        if (newUser) {
-            generateTokenAndSetCookie(newUser._id, res);
-            await newUser.save();
+        // Save the user first
+        await newUser.save();
 
-            res.status(201).json({
-                _id: newUser._id,
-                fullName: newUser.fullName,
-                username: newUser.username,
-                email: newUser.email,
-                followers: newUser.followers,
-                following: newUser.following,
-                profileImg: newUser.profileImg,
-                coverImg: newUser.coverImg
-            })
-        }
+        // Generate token and set cookie after saving the user
+        generateTokenAndSetCookie(newUser._id, res);
 
-        else {
-            res.status(400).json({ error: "invalid user data" })
-        }
+        // Return to stop further execution
+        return res.status(201).json({
+            _id: newUser._id,
+            fullName: newUser.fullName,
+            username: newUser.username,
+            email: newUser.email,
+            followers: newUser.followers,
+            following: newUser.following,
+            profileImg: newUser.profileImg,
+            coverImg: newUser.coverImg
+        });
+        
+    } catch (err) {
+        console.log("error in signup controller", err.message);
+        // Return to stop further execution
+        return res.status(500).json({ error: "Internal server error" });
     }
-
-
-
-    catch (err) {
-        console.log("error is signup controller", err.message);
-        res.status(500).json({ error: "Internal server error" });
-    }
-
 }
+
 
 export const login = async (req, res) => {
     try {
+        const { username, password } = req.body;
 
-        const {username, password} = req.body;
-
-        const  user = await User.findOne({username});
+        const user = await User.findOne({ username });
         const isPasswordCorrect = await bcrypt.compare(password, user?.password || "");
 
-        if(!user || !isPasswordCorrect) {
-            res.status(400).json({error: "Invalid username or password"})
+        if (!user || !isPasswordCorrect) {
+            return res.status(400).json({ error: "Invalid username or password" });
         }
 
         generateTokenAndSetCookie(user._id, res);
 
-        res.status(201).json({
+        return res.status(201).json({
             _id: user._id,
             fullName: user.fullName,
             username: user.username,
@@ -84,13 +82,14 @@ export const login = async (req, res) => {
             following: user.following,
             profileImg: user.profileImg,
             coverImg: user.coverImg
-        })
+        });
         
     } catch (error) {
         console.log("error is login controller", error.message);
-        res.status(500).json({ error: "Internal server error" });
+        return res.status(500).json({ error: "Internal server error" });
     }
 }
+
 
 export const logout = async (req, res) => {
     try {
